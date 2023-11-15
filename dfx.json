@@ -1,0 +1,30 @@
+{
+  "canisters": {
+    "icp_dao_backend": {
+      "candid": "src/icp_dao_backend/icp_dao_backend.did",
+      "package": "icp_dao_backend",
+      "type": "rust"
+    },
+    "icp_dao_frontend": {
+      "dependencies": [
+        "icp_dao_backend"
+      ],
+      "frontend": {
+        "entrypoint": "src/icp_dao_frontend/src/index.html"
+      },
+      "source": [
+        "src/icp_dao_frontend/assets",
+        "dist/icp_dao_frontend/"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
