@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate serde;
 
-mod service;
-mod types;
+mod dao_service;
+mod dao_types;
 
-use crate::types::*;
+use crate::dao_types::*;
 use candid::{Nat, Principal};
 use ic_cdk::api::call::CallResult;
 use ic_cdk::api::time;
@@ -20,7 +20,7 @@ thread_local! {
         MemoryManager::init(DefaultMemoryImpl::default())
     );
 
-    static DAO_STORAGE: RefCell<DaoData>= RefCell::default();
+    static DAO_STORAGE: RefCell<DaoData> = RefCell::default();
 
     static PROPOSAL_STORAGE: RefCell<StableBTreeMap<u32, Proposal, VirtualMemory<DefaultMemoryImpl>>> =
         RefCell::new(StableBTreeMap::init(
@@ -48,24 +48,25 @@ fn get_dao_data() -> Result<DaoData, String> {
 async fn join_dao(payload: SharesPayload) -> Result<Nat, String> {
     let result = do_transfer_to_canister(&payload)
         .await
-        .map_err(|e| format!("failed to call ledger: {:?}", e))?
-        .map_err(|e| format!("ledger transfer error {:?}", e));
+        .map_err(|e| format!("Failed to call ledger: {:?}", e))?
+        .map_err(|e| format!("Ledger transfer error: {:?}", e))?;
 
     match result {
         Ok(value) => {
-            // create user account
+            // Create user account
             let user_account = DaoAccount {
                 id: ic_cdk::caller(),
                 shares: payload.amount.clone(),
             };
-            // add user
+
+            // Add user
             add_user(&user_account);
 
-            // update dao data
+            // Update dao data
             DAO_STORAGE.with(|dao| dao.borrow_mut().add_total_shares(&payload.amount));
             DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&payload.amount));
 
-            // return ok value
+            // Return ok value
             Ok(value)
         }
         Err(error) => Err(error),
@@ -77,13 +78,9 @@ fn get_shares(user: Principal) -> Result<DaoAccount, String> {
     let account = get_user(&user);
     match account {
         Some(account) => Ok(account),
-        None => Err(format!("You do not have a dao account")),
+        None => Err("You do not have a DAO account".to_string()),
     }
 }
-
-#[ic_cdk::update]
-async fn redeem_shares(payload: SharesPayload) -> Result<Nat, String> {
-    let mut account = get_user(&ic_cdk::caller()).expect("you do not have a dao account");
 
     // check if available funds is greater than the amount
     let dao_data = DAO_STORAGE.with(|dao| dao.borrow().clone());
@@ -297,12 +294,11 @@ fn get_caller_principal() -> Principal {
     ic_cdk::caller()
 }
 
-// helper method to transfer tokens from ledger to canister
+// Helper method to transfer tokens from ledger to canister
 async fn do_transfer_to_canister(
     payload: &SharesPayload,
 ) -> CallResult<Result<Nat, TransferFromError>> {
     let ledger_id = Principal::from_text("mxzaz-hqaaa-aaaar-qaada-cai").unwrap();
-    // The request object of the `icrc1_name` endpoint is empty.
 
     let args = TransferFromArgs {
         spender_subaccount: None,
@@ -319,13 +315,16 @@ async fn do_transfer_to_canister(
         memo: None,
         amount: payload.amount.clone(),
     };
-    let (result,): (Result<Nat, TransferFromError>,) =
-        ic_cdk::call(ledger_id, "icrc2_transfer_from", (args,)).await?;
 
-    Ok(result)
+    ic_cdk::call(ledger_id, "icrc2_transfer_from", (args,)).await.map_err(|e| {
+        format!(
+            "Failed to call ledger 'icrc2_transfer_from': {:?}",
+            e
+        )
+    })
 }
 
-// helper method to add new user.
+// Helper method to add a new user.
 fn add_user(account: &DaoAccount) {
     ACCOUNT_STORAGE.with(|service| {
         service
@@ -334,25 +333,25 @@ fn add_user(account: &DaoAccount) {
     });
 }
 
-// helper method to perform insert.
+// Helper method to perform an insert.
 fn add_proposal(proposal: &Proposal) {
     PROPOSAL_STORAGE.with(|service| service.borrow_mut().insert(proposal.id, proposal.clone()));
 }
 
-// helper method to get users
+// Helper method to get users
 fn get_user(account: &Principal) -> Option<DaoAccount> {
-    ACCOUNT_STORAGE.with(|service| service.borrow().get(&account.to_string()))
+    ACCOUNT_STORAGE.with(|service| service.borrow().get(&account.to_string()).cloned())
 }
 
-// helper method to get proposal
+// Helper method to get a proposal 
+
 fn get_proposal(id: &u32) -> Option<Proposal> {
-    PROPOSAL_STORAGE.with(|service| service.borrow().get(id))
+    PROPOSAL_STORAGE.with(|service| service.borrow().get(id).cloned())
 }
 
-// a helper method to transfer the coffee amount to creator
+// Helper method to transfer tokens
 async fn _transfer(transfer_args: TransferPayload) -> CallResult<Result<Nat, TransferError>> {
     let ledger_id = Principal::from_text("mxzaz-hqaaa-aaaar-qaada-cai").unwrap();
-    // The request object of the `icrc1_name` endpoint is empty.
 
     let args = TransferArg {
         from_subaccount: None,
@@ -365,11 +364,17 @@ async fn _transfer(transfer_args: TransferPayload) -> CallResult<Result<Nat, Tra
         memo: None,
         amount: transfer_args.amount,
     };
-    let (result,): (Result<Nat, TransferError>,) =
-        ic_cdk::call(ledger_id, "icrc1_transfer", (args,)).await?;
 
-    Ok(result)
+    ic_cdk::call(ledger_id, "icrc1_transfer", (args,)).await.map_err(|e| {
+        format!(
+            "Failed to call ledger 'icrc1_transfer': {:?}",
+            e
+        )
+    })
 }
 
-// need this to generate candid
+// Need this to generate Candid
 ic_cdk::export_candid!();
+
+
+
