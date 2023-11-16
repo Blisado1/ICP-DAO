@@ -1,9 +1,17 @@
-# icp_dao
+# ICP DAO
 
-Welcome to your new icp_dao project and to the internet computer development community. By default, creating a new project adds this README and some template files to your project directory. You can edit these template files to customize your project and to include your own code to speed up the development cycle.
+## Disclaimer
 
-To get started, you might want to explore the project directory structure and the default configuration file. Working with this project in your development environment will not affect any production deployment or identity tokens.
+This is a test canister and should not be used in production.
 
+This DAO contract:
+
+- Collects investors money (ICP) & allocate shares
+- Keep track of investor contributions with shares
+- Allow investors to transfer shares
+- Allow investment proposals to be created and voted
+- Execute successful investment proposals (i.e send money)
+- The number of votes an investor has is equivalent to the number of shares the investor has.
 To learn more before you start working with icp_dao, see the following documentation available online:
 
 - [Quick Start](https://internetcomputer.org/docs/quickstart/quickstart-intro)
