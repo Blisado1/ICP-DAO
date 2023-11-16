@@ -46,6 +46,11 @@ fn get_dao_data() -> Result<DaoData, String> {
 
 #[ic_cdk::update]
 async fn join_dao(payload: SharesPayload) -> Result<Nat, String> {
+    // check if user already has a dao account
+    if get_user(&ic_cdk::caller()).is_some() {
+        return Err(format!("you already have a dao account"));
+    }
+
     let result = do_transfer_to_canister(&payload)
         .await
         .map_err(|e| format!("failed to call ledger: {:?}", e))?
@@ -65,6 +70,32 @@ async fn join_dao(payload: SharesPayload) -> Result<Nat, String> {
             DAO_STORAGE.with(|dao| dao.borrow_mut().add_total_shares(&payload.amount));
             DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&payload.amount));
 
+            // return ok value
+            Ok(value)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+#[ic_cdk::update]
+async fn increase_shares(payload: SharesPayload) -> Result<Nat, String> {
+    // check if user already has a dao account
+    let mut account = get_user(&ic_cdk::caller()).expect("you do not have a dao account");
+
+    let result = do_transfer_to_canister(&payload)
+        .await
+        .map_err(|e| format!("failed to call ledger: {:?}", e))?
+        .map_err(|e| format!("ledger transfer error {:?}", e));
+
+    match result {
+        Ok(value) => {
+            // update user shares
+            account.add_shares(&payload.amount);
+            // update in records
+            add_user(&account);
+            // update dao data
+            DAO_STORAGE.with(|dao| dao.borrow_mut().add_total_shares(&payload.amount));
+            DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&payload.amount));
             // return ok value
             Ok(value)
         }
@@ -96,10 +127,10 @@ async fn redeem_shares(payload: SharesPayload) -> Result<Nat, String> {
         return Err(format!("you do not have enough funds"));
     }
 
-    // create transfer args
+    // create transfer args and remove transfer fee
     let transfer_args = TransferPayload {
         to: account.id,
-        amount: payload.amount.clone(),
+        amount: payload.amount.clone() - 1_000,
     };
 
     // transfer the funds from canister back to user
@@ -135,13 +166,13 @@ fn transfer_shares(payload: TransferSharesPayload) -> Result<String, String> {
         return Err(format!("you do not have enough funds"));
     }
 
+    // subtract shares from from account and update in records
+    from_account.sub_shares(&payload.shares);
+    add_user(&from_account);
+
     // get recipient account
     match get_user(&payload.to) {
         Some(mut to_account) => {
-            // subtract shares from from account and update in records
-            from_account.sub_shares(&payload.shares);
-            add_user(&from_account);
-
             // add shares to to_account and update in records
             to_account.add_shares(&payload.shares);
             add_user(&to_account);
@@ -192,6 +223,16 @@ fn create_proposal(payload: ProposalPayload) -> Result<Proposal, String> {
     });
 
     Ok(new_proposal)
+}
+
+#[ic_cdk::query]
+fn view_proposal(payload: QueryPayload) -> Result<Proposal, String> {
+    let proposal = get_proposal(&payload.id);
+
+    match proposal {
+        Some(proposal) => Ok(proposal),
+        None => Err(format!("proposal with id {} does not exist", payload.id)),
+    }
 }
 
 #[ic_cdk::update]
@@ -251,10 +292,10 @@ async fn execute_proposal(payload: QueryPayload) -> Result<String, String> {
     let hundred_percent: Nat = 100u128.into();
 
     if proposal.votes * hundred_percent / dao_data.total_shares >= dao_data.quorum {
-        // create transfer arguments
+        // create transfer arguments and remove transfer fee
         let transfer_args = TransferPayload {
             to: proposal.recipient,
-            amount: proposal.amount.clone(),
+            amount: proposal.amount.clone() - 1_000,
         };
         // transfer the funds from canister back to user
         let result = _transfer(transfer_args)

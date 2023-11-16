@@ -4,7 +4,8 @@ use crate::types::*;
 
 impl DaoData {
     pub fn init_params(&mut self, payload: InitPayload) {
-        self.vote_time = payload.vote_duration.clone();
+        // vote duration in minutes
+        self.vote_time = payload.vote_duration.clone() * 60 * 1000000000;
         self.quorum = payload.quorum.clone();
     }
 

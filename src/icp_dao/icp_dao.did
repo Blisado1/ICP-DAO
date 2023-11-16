@@ -39,8 +39,10 @@ service : (InitPayload) -> {
   get_canister_principal : () -> (principal) query;
   get_dao_data : () -> (Result_2) query;
   get_shares : (principal) -> (Result_3) query;
+  increase_shares : (SharesPayload) -> (Result_4);
   join_dao : (SharesPayload) -> (Result_4);
   redeem_shares : (SharesPayload) -> (Result_4);
   transfer_shares : (TransferSharesPayload) -> (Result_1);
+  view_proposal : (QueryPayload) -> (Result) query;
   vote_proposal : (QueryPayload) -> (Result_1);
 }
