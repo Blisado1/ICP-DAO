@@ -1,22 +1,14 @@
 {
   "canisters": {
-    "icp_dao_backend": {
-      "candid": "src/icp_dao_backend/icp_dao_backend.did",
-      "package": "icp_dao_backend",
+    "icp_dao": {
+      "candid": "src/icp_dao/icp_dao.did",
+      "package": "icp_dao",
       "type": "rust"
     },
-    "icp_dao_frontend": {
-      "dependencies": [
-        "icp_dao_backend"
-      ],
-      "frontend": {
-        "entrypoint": "src/icp_dao_frontend/src/index.html"
-      },
-      "source": [
-        "src/icp_dao_frontend/assets",
-        "dist/icp_dao_frontend/"
-      ],
-      "type": "assets"
+    "icrc1_ledger": {
+      "type": "custom",
+      "candid": "src/icrc1_ledger/icrc1-ledger.did",
+      "wasm": "src/icrc1_ledger/icrc1-ledger.wasm.gz"
     }
   },
   "defaults": {

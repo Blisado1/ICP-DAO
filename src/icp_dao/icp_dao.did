@@ -1,0 +1,46 @@
+type DaoAccount = record { id : principal; shares : nat };
+type DaoData = record {
+  available_funds : nat;
+  vote_time : nat64;
+  next_proposal_id : nat32;
+  total_shares : nat;
+  quorum : nat64;
+  locked_funds : nat;
+};
+type InitPayload = record { vote_duration : nat64; quorum : nat64 };
+type Proposal = record {
+  id : nat32;
+  title : text;
+  votes : nat;
+  ends : nat64;
+  recipient : principal;
+  voters : vec principal;
+  ended : bool;
+  executed : bool;
+  amount : nat;
+};
+type ProposalPayload = record {
+  title : text;
+  recipient : principal;
+  amount : nat;
+};
+type QueryPayload = record { id : nat32 };
+type Result = variant { Ok : Proposal; Err : text };
+type Result_1 = variant { Ok : text; Err : text };
+type Result_2 = variant { Ok : DaoData; Err : text };
+type Result_3 = variant { Ok : DaoAccount; Err : text };
+type Result_4 = variant { Ok : nat; Err : text };
+type SharesPayload = record { amount : nat };
+type TransferSharesPayload = record { to : principal; shares : nat };
+service : (InitPayload) -> {
+  create_proposal : (ProposalPayload) -> (Result);
+  execute_proposal : (QueryPayload) -> (Result_1);
+  get_caller_principal : () -> (principal) query;
+  get_canister_principal : () -> (principal) query;
+  get_dao_data : () -> (Result_2) query;
+  get_shares : (principal) -> (Result_3) query;
+  join_dao : (SharesPayload) -> (Result_4);
+  redeem_shares : (SharesPayload) -> (Result_4);
+  transfer_shares : (TransferSharesPayload) -> (Result_1);
+  vote_proposal : (QueryPayload) -> (Result_1);
+}
