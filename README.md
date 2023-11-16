@@ -12,6 +12,9 @@ This DAO contract:
 - Allow investment proposals to be created and voted
 - Execute successful investment proposals (i.e send money)
 - The number of votes an investor has is equivalent to the number of shares the investor has.
+
+## Info
+
 To learn more before you start working with icp_dao, see the following documentation available online:
 
 - [Quick Start](https://internetcomputer.org/docs/quickstart/quickstart-intro)

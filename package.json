@@ -9,8 +9,9 @@
     "Canister"
   ],
   "scripts": {
-    "generate": "./did.sh && dfx generate",
-    "gen-deploy": "./did.sh && dfx generate && dfx deploy -y"
+    "generate": "./scripts/did.sh && dfx generate",
+    "deploy-ledger": "./scripts/ledger.sh",
+    "dao": "./scripts/dao.sh"
   },
   "engines": {
     "node": "^12 || ^14 || ^16 || ^18"
