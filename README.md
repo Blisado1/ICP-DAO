@@ -88,7 +88,7 @@ functions:
 14.    help
 ```
 
-So now we use the deploy function and deploy the dao supplying the voting duration in seconds as the first argument and the quorum percentage required for a proposal to be executed successfully.
+So now we use the deploy function and deploy the dao supplying the voting duration in minutes as the first argument and the quorum percentage required for a proposal to be executed successfully.
 
 ```bash
 # npm run dao deploy <voting_duration> <quorum %>
