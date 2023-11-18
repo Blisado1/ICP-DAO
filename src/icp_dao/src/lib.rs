@@ -61,7 +61,7 @@ async fn join_dao(payload: SharesPayload) -> Result<Nat, String> {
             // create user account
             let user_account = DaoAccount {
                 id: ic_cdk::caller(),
-                shares: payload.amount.clone(),
+                shares: payload.amount.clone() - get_ledger_fee().await.clone(),
             };
             // add user
             add_user(&user_account);
@@ -90,7 +90,8 @@ async fn increase_shares(payload: SharesPayload) -> Result<Nat, String> {
     match result {
         Ok(value) => {
             // update user shares
-            account.add_shares(&payload.amount);
+            let shares = payload.amount.clone() - get_ledger_fee().await.clone();
+            account.add_shares(&shares);
             // update in records
             add_user(&account);
             // update dao data
@@ -130,7 +131,7 @@ async fn redeem_shares(payload: SharesPayload) -> Result<Nat, String> {
     // create transfer args and remove transfer fee
     let transfer_args = TransferPayload {
         to: account.id,
-        amount: payload.amount.clone() - 1_000,
+        amount: payload.amount.clone(),
     };
 
     // transfer the funds from canister back to user
@@ -295,7 +296,7 @@ async fn execute_proposal(payload: QueryPayload) -> Result<String, String> {
         // create transfer arguments and remove transfer fee
         let transfer_args = TransferPayload {
             to: proposal.recipient,
-            amount: proposal.amount.clone() - 1_000,
+            amount: proposal.amount.clone(),
         };
         // transfer the funds from canister back to user
         let result = _transfer(transfer_args)
@@ -358,7 +359,7 @@ async fn do_transfer_to_canister(
         fee: None,
         created_at_time: None,
         memo: None,
-        amount: payload.amount.clone(),
+        amount: payload.amount.clone() - get_ledger_fee().await.clone(),
     };
     let (result,): (Result<Nat, TransferFromError>,) =
         ic_cdk::call(ledger_id, "icrc2_transfer_from", (args,)).await?;
@@ -404,12 +405,20 @@ async fn _transfer(transfer_args: TransferPayload) -> CallResult<Result<Nat, Tra
         fee: None,
         created_at_time: None,
         memo: None,
-        amount: transfer_args.amount,
+        amount: transfer_args.amount - get_ledger_fee().await.clone(),
     };
     let (result,): (Result<Nat, TransferError>,) =
         ic_cdk::call(ledger_id, "icrc1_transfer", (args,)).await?;
 
     Ok(result)
+}
+
+async fn get_ledger_fee() -> Nat {
+    let ledger_id = Principal::from_text("mxzaz-hqaaa-aaaar-qaada-cai").unwrap();
+    // The request object of the `icrc1_name` endpoint is empty.
+    let req = ();
+    let (res,): (Nat,) = ic_cdk::call(ledger_id, "icrc1_fee", (req,)).await.unwrap();
+    res
 }
 
 // need this to generate candid
