@@ -14,6 +14,7 @@ This DAO contract:
 - Allow investment proposals to be created and voted
 - Execute successful investment proposals (i.e send money)
 - The number of votes an investor has is equivalent to the number of shares the investor has.
+- Once an investor votes for a proposal his funds are locked for the duration of the proposal voting period. (A safety measure to avoid drainage of total shares before the quorum is calculated.) and once the investor fund are locked, they won't be able to transfer them or redeem them until the voting period ends.
 
 ## Info
 
@@ -99,7 +100,7 @@ Once the job completes, your application will be available at `http://localhost:
 
 Next we are going to try the remaining functions
 
-1. Getting test tokens from the minter account. This sends tokens from ledger to the default account.
+1. Getting test tokens from the minter account. This sends tokens from ledger to the current dfx identity.
 
     ```bash
     # npm run dao run_faucet <amount> 
@@ -139,18 +140,19 @@ Next we are going to try the remaining functions
 
     N/B: Due to the  `1000` ledger token transfer fee, so redeeming 10_000 tokens means you'll receive 9000 tokens.
 
-    To transfer shares to another user, you need the receiver principal to get one from your terminal use this command
+    To transfer shares to another user, you need to use the create an identity
 
     ```bash
     dfx identity new newuser
-    dfx identity get-principal --identity newuser
+
+    npm run dao transfer_shares newuser <amount>
     ```
 
 3. Next to create a proposal call the `create_proposal` function.
 
     ```bash
-    # npm run dao create_proposal <title> <recipient> <amount> 
-    npm run dao create_proposal Test-Proposal 6px4l-2fcgj-tisck-szsve-pz37t-nm57a-mm2zp-sa5uq-h4rhj-vqtn4-2qe 10_000
+    # npm run dao create_proposal <title> <recipient identity> <amount> 
+    npm run dao create_proposal Test-Proposal account2 10_000
     ```
 
     N/B: There's a `1000` ledger token transfer fee, so paying 10_000 tokens recipient means recipient will receive 9000 tokens.
@@ -168,5 +170,83 @@ Next we are going to try the remaining functions
     npm run dao vote_proposal <proposal_id>
 
     # execute proposal
-    snpm run dao execute_proposal <proposal_id>
+    npm run dao execute_proposal <proposal_id>
     ```
+
+## For Testers
+
+I recommend generating various identities to test the canister. Simply switch between these identities before making function calls.
+
+For example in the `create_proposal` and `transfer_shares` function the recipient to be passed in is the identity of the recipient.
+
+To create identities
+
+```bash
+# dfx identity new <identity_name>
+dfx identity new account1
+dfx identity new account2
+```
+
+To switch between identities:
+
+```bash
+# dfx identity use <identity_name>
+dfx identity use account1
+dfx identity use account2
+```
+
+And to know which identity you're on call:
+
+```bash
+dfx identity whoami
+```
+
+## Example User Experience
+
+1. Deploying the Ledger
+
+    ![img](./assets/img/deploy-ledger.png)
+
+2. Deploying the Dao Canister
+
+    ![img](./assets/img/deploy-dao.png)
+
+3. Creating Identities for testing
+
+    ![img](./assets/img/create-identities.png)
+
+4. Getting tokens from the faucet
+
+   ![img](./assets/img/get-faucet.png)
+
+5. Joining the dao
+
+    ![img](./assets/img/join-dao.png)
+
+6. Increasing shares in dao
+
+    ![img](./assets/img/increase-shares.png)
+
+7. Redeeming shares in dao
+
+    ![img](./assets/img/redeem-shares.png)
+
+8. Transferring shares in dao
+
+    ![img](./assets/img/transfer-shares.png)
+
+9. Creating a proposal
+
+    ![img](./assets/img/create-proposal.png)
+
+10. Getting dao data
+
+    ![img](./assets/img/get-dao-data.png)
+
+11. Voting for a proposal
+
+    ![img](./assets/img/vote-proposal.png)
+
+12. Executing a proposal
+
+    ![img](./assets/img/execute-proposal.png)
