@@ -30,7 +30,7 @@ impl DaoData {
     }
 
     pub fn increment_proposal_n_lock_funds(&mut self, amount: &NumTokens) {
-        self.available_funds += amount.clone();
+        self.available_funds -= amount.clone();
         self.locked_funds += amount.clone();
         self.next_proposal_id += 1;
     }
@@ -43,5 +43,13 @@ impl DaoAccount {
 
     pub fn sub_shares(&mut self, amount: &NumTokens) {
         self.shares -= amount.clone();
+    }
+
+    pub fn lock_shares(&mut self){
+        self.locked = true;
+    }
+
+    pub fn unlock_shares(&mut self){
+        self.locked = false;
     }
 }

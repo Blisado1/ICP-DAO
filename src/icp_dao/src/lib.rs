@@ -59,16 +59,19 @@ async fn join_dao(payload: SharesPayload) -> Result<Nat, String> {
     match result {
         Ok(value) => {
             // create user account
+
+            let amount = payload.amount.clone() - get_ledger_fee().await.clone();
             let user_account = DaoAccount {
                 id: ic_cdk::caller(),
-                shares: payload.amount.clone() - get_ledger_fee().await.clone(),
+                shares: amount.clone(),
+                locked: false
             };
             // add user
             add_user(&user_account);
 
             // update dao data
-            DAO_STORAGE.with(|dao| dao.borrow_mut().add_total_shares(&payload.amount));
-            DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&payload.amount));
+            DAO_STORAGE.with(|dao| dao.borrow_mut().add_total_shares(&amount));
+            DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&amount));
 
             // return ok value
             Ok(value)
@@ -95,8 +98,8 @@ async fn increase_shares(payload: SharesPayload) -> Result<Nat, String> {
             // update in records
             add_user(&account);
             // update dao data
-            DAO_STORAGE.with(|dao| dao.borrow_mut().add_total_shares(&payload.amount));
-            DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&payload.amount));
+            DAO_STORAGE.with(|dao| dao.borrow_mut().add_total_shares(&shares));
+            DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&shares));
             // return ok value
             Ok(value)
         }
@@ -116,6 +119,10 @@ fn get_shares(user: Principal) -> Result<DaoAccount, String> {
 #[ic_cdk::update]
 async fn redeem_shares(payload: SharesPayload) -> Result<Nat, String> {
     let mut account = get_user(&ic_cdk::caller()).expect("you do not have a dao account");
+
+    if account.locked {
+        return  Err(format!("Cannot redeem shares as they are locked"));
+    }
 
     // check if available funds is greater than the amount
     let dao_data = DAO_STORAGE.with(|dao| dao.borrow().clone());
@@ -167,6 +174,10 @@ fn transfer_shares(payload: TransferSharesPayload) -> Result<String, String> {
         return Err(format!("you do not have enough funds"));
     }
 
+    if from_account.locked {
+        return  Err(format!("Cannot transfer shares as they are locked"));
+    }
+
     // subtract shares from from account and update in records
     from_account.sub_shares(&payload.shares);
     add_user(&from_account);
@@ -183,6 +194,7 @@ fn transfer_shares(payload: TransferSharesPayload) -> Result<String, String> {
             let new_acount = DaoAccount {
                 id: payload.to,
                 shares: payload.shares,
+                locked: false
             };
             add_user(&new_acount);
         }
@@ -239,7 +251,7 @@ fn view_proposal(payload: QueryPayload) -> Result<Proposal, String> {
 #[ic_cdk::update]
 fn vote_proposal(payload: QueryPayload) -> Result<String, String> {
     // check if user has an account
-    let account = get_user(&ic_cdk::caller()).expect("you do not have a dao account");
+    let mut account = get_user(&ic_cdk::caller()).expect("you do not have a dao account");
 
     match get_proposal(&payload.id) {
         Some(mut proposal) => {
@@ -253,13 +265,17 @@ fn vote_proposal(payload: QueryPayload) -> Result<String, String> {
             }
 
             // add voters shares to proposal count
-            proposal.votes += account.shares;
+            proposal.votes += account.shares.clone();
 
             // add proposal to proposal count
             proposal.voters.push(ic_cdk::caller());
 
             // update proposal in records
             add_proposal(&proposal);
+
+            // lock voter shares and updates
+            account.lock_shares();
+            add_user(&account);
 
             Ok(format!(
                 "you have successfully voted for proposal with id {}",
@@ -313,6 +329,9 @@ async fn execute_proposal(payload: QueryPayload) -> Result<String, String> {
 
                 proposal.executed = true;
                 proposal.ended = true;
+                
+                // unlock voter shares
+                unlock_shares(proposal.voters);
 
                 Ok(format!(
                     "proposal with id {} successfully executed",
@@ -322,9 +341,13 @@ async fn execute_proposal(payload: QueryPayload) -> Result<String, String> {
             Err(error) => Err(error),
         }
     } else {
+        // end proposal
         proposal.ended = true;
+        // unlock funds and release back to available funds
         DAO_STORAGE.with(|dao| dao.borrow_mut().sub_locked_shares(&proposal.amount));
         DAO_STORAGE.with(|dao| dao.borrow_mut().add_available_shares(&proposal.amount));
+        // unlock voter shares
+        unlock_shares(proposal.voters);
         Ok(format!("Proposal with id {} was not succesful", payload.id))
     }
 }
@@ -413,12 +436,22 @@ async fn _transfer(transfer_args: TransferPayload) -> CallResult<Result<Nat, Tra
     Ok(result)
 }
 
+// helper method to get ledger fee
 async fn get_ledger_fee() -> Nat {
     let ledger_id = Principal::from_text("mxzaz-hqaaa-aaaar-qaada-cai").unwrap();
     // The request object of the `icrc1_name` endpoint is empty.
     let req = ();
     let (res,): (Nat,) = ic_cdk::call(ledger_id, "icrc1_fee", (req,)).await.unwrap();
     res
+}
+
+// helper method to unlock voter shares
+fn unlock_shares(voters: Vec<Principal>) {
+    for voter in voters.iter() {
+        let mut account = get_user(voter).unwrap();
+        account.unlock_shares();
+        add_user(&account);
+    }
 }
 
 // need this to generate candid

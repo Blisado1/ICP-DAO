@@ -1,4 +1,4 @@
-type DaoAccount = record { id : principal; shares : nat };
+type DaoAccount = record { id : principal; shares : nat; locked : bool };
 type DaoData = record {
   available_funds : nat;
   vote_time : nat64;

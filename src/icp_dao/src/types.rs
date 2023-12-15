@@ -79,6 +79,7 @@ pub struct QueryPayload {
 pub struct DaoAccount {
     pub id: Principal,
     pub shares: NumTokens,
+    pub locked: bool,
 }
 
 #[derive(candid::CandidType, Clone, Serialize, Deserialize)]
